@@ -77,7 +77,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
                         } catch { }
 
                         // connection should close with not data sent in return
-                        await connection.WaitForConnectionClose();
+                        await connection.WaitForConnectionClose().TimeoutAfter(TimeSpan.FromSeconds(15));
                     }
                 }
             }

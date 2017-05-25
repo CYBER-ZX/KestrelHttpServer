@@ -130,10 +130,21 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
                     upgradeTcs.TrySetException(e);
                     throw;
                 }
+
+                while (!context.RequestAborted.IsCancellationRequested)
+                {
+                    await Task.Delay(100);
+                }
             }))
             using (var connection = server.CreateConnection())
             {
                 await connection.SendEmptyGetWithUpgrade();
+                await connection.Receive("HTTP/1.1 101 Switching Protocols",
+                    "Connection: Upgrade",
+                    $"Date: {server.Context.DateHeaderValue}",
+                    "",
+                    "");
+                await connection.WaitForConnectionClose().TimeoutAfter(TimeSpan.FromSeconds(15));
             }
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await upgradeTcs.Task.TimeoutAfter(TimeSpan.FromSeconds(15)));

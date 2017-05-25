@@ -41,8 +41,8 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure
             public override bool TryLockOne()
             {
                 var next = Interlocked.Increment(ref _count);
-                // check that it's non-negative to avoid overflow
-                var accepted = next <= _max && next >= 0;
+                // check that it's positive to avoid overflow
+                var accepted = next <= _max && next > 0;
                 if (!accepted)
                 {
                     Interlocked.Decrement(ref _count);
