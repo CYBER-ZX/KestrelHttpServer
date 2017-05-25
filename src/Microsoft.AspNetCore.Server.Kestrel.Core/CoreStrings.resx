@@ -312,9 +312,6 @@
   <data name="CannotUpgradeNonUpgradableRequest" xml:space="preserve">
     <value>Cannot upgrade a non-upgradable request. Check IHttpUpgradeFeature.IsUpgradableRequest to determine if a request can be upgraded.</value>
   </data>
-  <data name="BadRequest_ServiceUnavailable" xml:space="preserve">
-    <value>Service is unavailable.</value>
-  </data>
   <data name="UpgradedConnectionLimitReached" xml:space="preserve">
     <value>Request cannot be upgraded because the server has already opened the maximum number of upgraded connections.</value>
   </data>

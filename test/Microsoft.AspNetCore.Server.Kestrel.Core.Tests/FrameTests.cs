@@ -30,7 +30,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
     public class FrameTests : IDisposable
     {
         private readonly IPipe _input;
-        private readonly IPipe _output;
         private readonly TestFrame<object> _frame;
         private readonly ServiceContext _serviceContext;
         private readonly FrameContext _frameContext;
@@ -56,7 +55,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
         {
             _pipelineFactory = new PipeFactory();
             _input = _pipelineFactory.Create();
-            _output = _pipelineFactory.Create();
+            var output = _pipelineFactory.Create();
 
             _serviceContext = new TestServiceContext();
             _timeoutControl = new Mock<ITimeoutControl>();
@@ -69,7 +68,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
                 },
                 TimeoutControl = _timeoutControl.Object,
                 Input = _input.Reader,
-                Output = _output
+                Output = output
             };
 
             _frame = new TestFrame<object>(application: null, context: _frameContext);
@@ -732,18 +731,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
             Assert.Equal(header0Count + header1Count, _frame.RequestHeaders.Count);
 
             await requestProcessingTask.TimeoutAfter(TimeSpan.FromSeconds(10));
-        }
-
-        [Fact]
-        public async Task RejectServiceUnavailableSendsBody()
-        {
-            _frame.SetBadRequestState(BadHttpRequestException.GetException(RequestRejectionReason.ServiceUnavailable));
-            await _input.Writer.WriteAsync(Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\n\r\n"));
-            await _frame.ProcessRequestsAsync().TimeoutAfter(TimeSpan.FromSeconds(10));
-
-            Assert.NotEqual(0, _frame.ResponseHeaders.ContentLength);
-            var readResult = await _output.Reader.ReadAsync();
-            Assert.EndsWith(Constants.ServiceUnavailableResponse, Encoding.ASCII.GetString(readResult.Buffer.ToArray()));
         }
 
         private static async Task WaitForCondition(TimeSpan timeout, Func<bool> condition)

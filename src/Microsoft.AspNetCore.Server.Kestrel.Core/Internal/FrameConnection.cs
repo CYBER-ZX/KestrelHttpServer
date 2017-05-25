@@ -68,7 +68,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
 
         private async Task ProcessRequestsAsync<TContext>(IHttpApplication<TContext> application)
         {
-            var accepted = _context.ServiceContext.Resources.NormalConnections.TryLockOne();
             try
             {
                 Log.ConnectionStart(ConnectionId);
@@ -114,21 +113,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                     adaptedPipelineTask = adaptedPipeline.RunAsync(stream);
                 }
 
-                if (!accepted)
-                {
-                    KestrelEventSource.Log.ConnectionRejected(ConnectionId);
-                    Log.ConnectionRejected(ConnectionId);
-
-                    // give a connection a maximum of 30 seconds to read back the 503 response before forcible closing
-                    var timeout = Math.Max(
-                        TimeSpan.FromSeconds(30).Ticks,
-                        _context.ServiceContext.ServerOptions.Limits.KeepAliveTimeout.Ticks);
-
-                    SetTimeout(timeout, TimeoutAction.CloseConnection);
-
-                    _frame.SetServiceUnavailable();
-                }
-
                 await _frame.ProcessRequestsAsync();
                 await adaptedPipelineTask;
                 await _socketClosedTcs.Task;
@@ -142,10 +126,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 _context.ServiceContext.ConnectionManager.RemoveConnection(_context.FrameConnectionId);
                 DisposeAdaptedConnections();
 
-                if (accepted)
-                {
-                    _context.ServiceContext.Resources.NormalConnections.ReleaseOne();
-                }
+                _context.ServiceContext.Resources.NormalConnections.ReleaseOne();
 
                 if (_frame.WasUpgraded)
                 {

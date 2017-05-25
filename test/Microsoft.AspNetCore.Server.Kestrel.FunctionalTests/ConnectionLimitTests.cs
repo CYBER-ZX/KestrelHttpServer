@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -27,43 +29,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
         }
 
         [Fact]
-        public async Task RejectsBadRequestsEventIfLimitIsMet()
-        {
-            var (context, _) = SetupMaxConnections(max: 1);
-
-            using (var server = new TestServer(KeepOpen, context))
-            using (var disposables = new DisposableStack<TestConnection>())
-            {
-                var accepted = server.CreateConnection();
-                disposables.Push(accepted);
-                await accepted.SendEmptyGetAsKeepAlive();
-                await accepted.Receive("HTTP/1.1 200 OK");
-
-                var goAway = server.CreateConnection();
-                disposables.Push(goAway);
-                try
-                {
-                    await goAway.SendEmptyGetAsKeepAlive();
-                }
-                catch { }
-                await goAway.Receive("HTTP/1.1 503 Service Unavailable");
-
-                var fail = server.CreateConnection();
-                disposables.Push(fail);
-                try
-                {
-                    await fail.Send("GET / HTTP/1.1",
-                        // "Host:", missing host header would triggered 400 response,
-                        // but limit is met so send 503 regardless of bad request
-                        "",
-                        "");
-                }
-                catch { }
-                await fail.Receive("HTTP/1.1 503 Service Unavailable");
-            }
-        }
-
-        [Fact]
         public async Task ResetsCountWhenConnectionClosed()
         {
             var releasedTcs = new TaskCompletionSource<object>();
@@ -84,7 +49,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
         }
 
         [Fact]
-        public async Task RejectsRequestsWhenLimitReached()
+        public async Task RejectsConnectionsWhenLimitReached()
         {
             const int max = 10;
             var (context, _) = SetupMaxConnections(max);
@@ -106,8 +71,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
                 {
                     using (var connection = server.CreateConnection())
                     {
-                        await connection.SendEmptyGetAsKeepAlive();
-                        await connection.Receive("HTTP/1.1 503 Service Unavailable");
+                        try
+                        {
+                            await connection.SendEmptyGetAsKeepAlive();
+                        } catch { }
+
+                        // connection should close with not data sent in return
+                        await connection.WaitForConnectionClose();
                     }
                 }
             }

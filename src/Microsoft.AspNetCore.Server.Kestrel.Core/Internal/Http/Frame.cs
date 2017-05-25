@@ -43,8 +43,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
         private static readonly byte[] _bytesEndHeaders = Encoding.ASCII.GetBytes("\r\n\r\n");
         private static readonly byte[] _bytesServer = Encoding.ASCII.GetBytes("\r\nServer: " + Constants.ServerName);
 
-        private static readonly ArraySegment<byte> _serviceUnavailableBody = CreateAsciiByteArraySegment(Constants.ServiceUnavailableResponse);
-
         private const string EmptyPath = "/";
         private const string Asterisk = "*";
 
@@ -69,7 +67,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
         private bool _autoChunk;
         protected Exception _applicationException;
         private BadHttpRequestException _requestRejectedException;
-        private bool _serviceUnavailable;
 
         protected HttpVersion _httpVersion;
 
@@ -142,7 +139,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
             }
         }
 
-        public bool ServiceAvailable { get; set; } = true;
         public bool WasUpgraded => _wasUpgraded;
         public IPAddress RemoteIpAddress { get; set; }
         public int RemotePort { get; set; }
@@ -378,17 +374,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
 
             _responseBytesWritten = 0;
             _requestCount++;
-        }
-
-        public void SetServiceUnavailable()
-        {
-            Debug.Assert(!HasResponseStarted, "This cannot be called after requests have been processed and responses started");
-
-            SetErrorResponseHeaders(StatusCodes.Status503ServiceUnavailable);
-
-            _serviceUnavailable = true;
-            _keepAlive = false;
-            _requestProcessingStopping = true;
         }
 
         /// <summary>
@@ -722,19 +707,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
             CreateResponseHeader(appCompleted);
         }
 
-        protected async Task TryProduceServiceUnavailableResponse()
-        {
-            if (!_serviceUnavailable)
-            {
-                return;
-            }
-
-            Debug.Assert(!HasResponseStarted, "When service is unavailable, nothing else should have attempted to start a response");
-
-            await ProduceEndAwaited();
-            await Output.WriteAsync(_serviceUnavailableBody, chunk: false);
-        }
-
         protected Task TryProduceInvalidRequestResponse()
         {
             if (_requestRejectedException != null)
@@ -1063,14 +1035,8 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
             var dateHeaderValues = DateHeaderValueManager.GetDateHeaderValues();
 
             responseHeaders.SetRawDate(dateHeaderValues.String, dateHeaderValues.Bytes);
-            if (statusCode == StatusCodes.Status503ServiceUnavailable)
-            {
-                responseHeaders.ContentLength = _serviceUnavailableBody.Count;
-            }
-            else
-            {
-                responseHeaders.ContentLength = 0;
-            }
+
+            responseHeaders.ContentLength = 0;
 
             if (ServerOptions.AddServerHeader)
             {

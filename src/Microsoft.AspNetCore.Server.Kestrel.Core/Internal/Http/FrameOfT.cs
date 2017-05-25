@@ -249,7 +249,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
                     // If _requestAborted is set, the connection has already been closed.
                     if (Volatile.Read(ref _requestAborted) == 0)
                     {
-                        await TryProduceServiceUnavailableResponse();
                         await TryProduceInvalidRequestResponse();
                         Output.Dispose();
                     }

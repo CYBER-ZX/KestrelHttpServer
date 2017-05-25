@@ -921,20 +921,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
             => GetString("CannotUpgradeNonUpgradableRequest");
 
         /// <summary>
-        /// Service is unavailable.
-        /// </summary>
-        internal static string BadRequest_ServiceUnavailable
-        {
-            get => GetString("BadRequest_ServiceUnavailable");
-        }
-
-        /// <summary>
-        /// Service is unavailable.
-        /// </summary>
-        internal static string FormatBadRequest_ServiceUnavailable()
-            => GetString("BadRequest_ServiceUnavailable");
-
-        /// <summary>
         /// Request cannot be upgraded because the server has already opened the maximum number of upgraded connections.
         /// </summary>
         internal static string UpgradedConnectionLimitReached
